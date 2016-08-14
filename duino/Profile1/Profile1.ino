@@ -1,7 +1,5 @@
 /*
 Profile 1: heat a board for 60 seconds with preheat
-  modified 8 May 2014
-  by Scott Fitzgerald
  */
 const int BOTTOMELEMENT = 12;
 const int TOPELEMENT = 13;

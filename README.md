@@ -5,7 +5,7 @@ The approach taken is low budget / minimum viable product (MVP). The oven featur
 
 Many others have produced fancy ovens with OLED / TFT diplays and many buttons. This is not that.. This is minimal and cheap enough to get a good result; No more, no less.
 
-Licensed under the GPLv3. See LICENSE for more details. Copywrite Matthew Bennett, Luke Andrews 2016.
+Licensed under the Mozilla Public License 2.0 (MPL2). See LICENSE for more details. Copy right Matthew Bennett, Luke Andrews 2016.
 
 ## Bill of materials ##
 1. A cheap toaster 
