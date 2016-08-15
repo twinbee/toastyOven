@@ -23,3 +23,9 @@ Sum total is about $125
 
 ## Repo Structure ##
 **duino** Contains the Arduino-based controller code. **designs** contains physical designs including some 3d-printable parts with sketchup models and wiring schematics. **processing**Contains code to take serial input from the arduino and plot it as a graph of temperature over time, for further tweaking
+
+## Toaster Usage ##
+The toaster may have a number of baking profiles up to the total number allowed by Arduino program memory space constraints. To select a profile, press the button the number of times desired until the LED is blinking the correct number for that profile. When you are satisfied, hold the button down for three seconds without releasing it, and the profile will begin. Once the profile has completed, the LED will blink until the user presses the button again.
+
+## Creating a custom profile ##
+Each profile should be written as a function with a function pointer stored in the global array profiles near the top of the code. Examples are provided.  
