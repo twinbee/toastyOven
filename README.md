@@ -86,7 +86,7 @@ You may also want to configure the hysteresis buffer with a different temperatur
     //  that stage
     // Use half the value that you actually want
     // so if you want the range to be 10 degrees,
-    //  e.g. 500C +/-5 C, use 5.0f
+    //  e.g. 500C +/-5C, use 5.0C
     int tempEpsilon = 5; 
     
 That's it! Enjoy a tasty circuit board at home.
