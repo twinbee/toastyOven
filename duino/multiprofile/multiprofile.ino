@@ -15,8 +15,90 @@ Licensed under the Mozilla Public License v 2.0
     in a CSV format of: time,temp,TopOn,BottomOn
 */
 
+///////////////////////////////////////////////////////////////////////
+// API part (e.g. make your own profile)
+///////////////////////////////////////////////////////////////////////
+
 const int NUM_PROFILES = 3;
 void (* profiles  [NUM_PROFILES]) () = { profile1, profile2, profile3 };
+
+const int NUM_STAGES = 4;
+int cookTemps[NUM_STAGES] = {0,0,0,0};
+int cookTimes[NUM_STAGES] = {0,0,0,0};
+
+// a buffer used for hysteresis / dampening.
+//  within epsilon degrees is "good enough" 
+//  to count time toward our goal time for 
+//  that stage
+// Use half the value that you actually want
+// so if you want the range to be 10 degrees,
+//  e.g. 500C +/-5 C, use 5.0f
+int tempEpsilon = 5; 
+
+void profile1()
+{
+//times are in seconds
+//temps are in degrees Centigrade
+
+  Serial.println("profile1: MEMS mics");
+// Preheat 160C
+//Dwell 120s
+//Ramp Up 1C/s for 98s
+//Dwell  30s
+//Ramp Down 1C/s for 98s
+//Ramp Off
+cookTemps[0] = 160;
+cookTimes[0] = 120;
+
+cookTemps[1] = 220;
+cookTimes[1] = 30;
+
+cookTemps[2] = 160;
+cookTimes[2] = 60;
+
+cookTemps[3] = 40;
+cookTimes[3] = 30;
+
+}
+
+void profile2()
+{
+   Serial.println("profile2: nothing");
+   
+cookTemps[0] = 160;
+cookTimes[0] = 120;
+
+cookTemps[1] = 220;
+cookTimes[1] = 30;
+
+cookTemps[2] = 160;
+cookTimes[2] = 10;
+
+cookTemps[3] = 40;
+cookTimes[3] = 30;
+}
+
+void profile3()
+{
+   Serial.println("profile3: nothing");
+      
+cookTemps[0] = 160;
+cookTimes[0] = 120;
+
+cookTemps[1] = 220;
+cookTimes[1] = 30;
+
+cookTemps[2] = 160;
+cookTimes[2] = 10;
+
+cookTemps[3] = 40;
+cookTimes[3] = 30;
+}
+
+
+/////////////////////////////////////////////////////////////////////////
+// Base code part (no need to edit but go to town if you want to!)
+/////////////////////////////////////////////////////////////////////////
 
 int profileChosen = -1;
 bool profileAcknowledged = false;
@@ -32,24 +114,12 @@ int currentTemp2 = 0;
 bool element1 = false;
 bool element2 = false;
 
-// a buffer used for hysteresis / dampening.
-//  within epsilon degrees is "good enough" 
-//  to count time toward our goal time for 
-//  that stage
-// Use half the value that you actually want
-// so if you want the range to be 10 degrees,
-//  e.g. 500C +/-5 C, use 5.0f
-int tempEpsilon = 5; 
 
 
-int timeTempReached = -1;
-int profileStage = 0;
+unsigned long timeTempReached = 0;
 unsigned long timeAtGoal = 0;
 
-// global vars used between functions in the event loop
-const int NUM_STAGES = 4;
-int cookTemps[NUM_STAGES];
-int cookTimes[NUM_STAGES];
+int profileStage = 0;
 
 //pot used for simulating temperature during development
 int sensorPin = A0; 
@@ -132,62 +202,6 @@ void outputData()
   Serial.println ();
 }
 
-void profile1()
-{
-   Serial.println("profile1: MEMS mics");
-// Preheat 160C
-//Dwell 120s
-//Ramp Up 1C/s for 98s
-//Dwell  30s
-//Ramp Down 1C/s for 98s
-//Ramp Off
-cookTemps[0] = 160;
-cookTimes[0] = 120;
-
-cookTemps[1] = 220;
-cookTimes[1] = 30;
-
-cookTemps[2] = 160;
-cookTimes[2] = 60;
-
-cookTemps[3] = 40;
-cookTimes[3] = 30;
-
-}
-
-void profile2()
-{
-   Serial.println("profile2: nothing");
-   
-cookTemps[0] = 160;
-cookTimes[0] = 120;
-
-cookTemps[1] = 220;
-cookTimes[1] = 30;
-
-cookTemps[2] = 160;
-cookTimes[2] = 10;
-
-cookTemps[3] = 40;
-cookTimes[3] = 30;
-}
-
-void profile3()
-{
-   Serial.println("profile3: nothing");
-      
-cookTemps[0] = 160;
-cookTimes[0] = 120;
-
-cookTemps[1] = 220;
-cookTimes[1] = 30;
-
-cookTemps[2] = 160;
-cookTimes[2] = 10;
-
-cookTemps[3] = 40;
-cookTimes[3] = 30;
-}
 
 void collectButtonInfo()
 {
