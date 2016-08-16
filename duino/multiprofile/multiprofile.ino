@@ -103,6 +103,10 @@ cookTimes[3] = 30;
 int profileChosen = -1;
 bool profileAcknowledged = false;
 
+bool lastButton = false;
+bool buttonState = false;
+unsigned long timeButtonPressed = 0;
+
 const int BUTTONPIN = 2;
 const int LEDPIN = 3;
 const int BOTTOMELEMENT = 12;
@@ -113,8 +117,6 @@ int currentTemp1 = 0;
 int currentTemp2 = 0;
 bool element1 = false;
 bool element2 = false;
-
-
 
 unsigned long timeTempReached = 0;
 unsigned long timeAtGoal = 0;
@@ -143,13 +145,14 @@ void setup() {
 void loop() {
 if (!profileAcknowledged)
 {
-  collectButtonInfo();
+  collectProfileSetting();
 }
  else   
     {
+      checkButtonForResetEvent();
       outputData();
       controlElements();
-      simTemp ();    // to be replaced with getting the temp from the thermocouple or RTD
+      getTemp ();    // to be replaced with getting the temp from the thermocouple or RTD
       reactToTemp();
       advancePhase();
     }
@@ -168,7 +171,7 @@ void controlElements()
   }      
 }
 
-void simTemp ()
+void getTemp ()
 {
 // if (element1) currentTemp += 2;
 // else currentTemp -= 1;
@@ -203,12 +206,8 @@ void outputData()
 }
 
 
-void collectButtonInfo()
+void collectProfileSetting()
 {
-  bool lastButton = false;
-  bool buttonState = false;
-  int timeButtonPressed = -1;
-
   buttonState = digitalRead(BUTTONPIN);
 
   while (!profileAcknowledged)
@@ -217,23 +216,22 @@ void collectButtonInfo()
   {
     if (lastButton != buttonState) 
     {
-      Serial.println("B-on");
       timeButtonPressed = millis();
     }
   } 
   else //  if (buttonState == LOW) 
   {
-    if (lastButton != buttonState && millis() - timeButtonPressed > 50) 
+    if (lastButton != buttonState && millis() - timeButtonPressed > 30) 
     {
-      Serial.print("B-off after ");
-      Serial.println(millis() - timeButtonPressed);
+      //Serial.print("B-off after ");
+      //Serial.println(millis() - timeButtonPressed);
       
-      if (millis() - timeButtonPressed < 2000)
+      if (millis() - timeButtonPressed < 1000)
       {
        profileChosen++;
        profileChosen %= NUM_PROFILES;
        Serial.print("Selected profile: ");
-       Serial.println(profileChosen);
+       Serial.println(profileChosen+1);
        blinkOutProfileChosen();
       }
       else 
@@ -252,34 +250,52 @@ void collectButtonInfo()
  buttonState= digitalRead(BUTTONPIN);
 } //end while
 
+      timeButtonPressed = 0;
+}
+
+void  checkButtonForResetEvent()
+{
+  lastButton = buttonState;
+  buttonState = digitalRead(BUTTONPIN);
+
+   if (buttonState == HIGH) 
+   {
+        Serial.println("!RESET!");
+        resetSoft();
+   }      
 }
 
 void blinkOutProfileChosen()
 {
+     digitalWrite(LEDPIN, LOW);
+     delay (200);
+     
      for (int i = 1; i <= profileChosen+1; i++)
      {
      digitalWrite(LEDPIN, HIGH);
-     delay (500);
+     delay (200);
      
      digitalWrite(LEDPIN, LOW);
-     delay (500);
+     delay (100);
      }
+     
+     digitalWrite(LEDPIN, LOW);
+     delay (100);
+     
      digitalWrite(LEDPIN, LOW);
 }
 
 void blinkOutAck()
 {
-     for (int i = 1; i <= 5; i++)
+     for (int i = 1; i <= 4; i++)
      {
      digitalWrite(LEDPIN, HIGH);
-     delay (100);
+     delay (50);
      
      digitalWrite(LEDPIN, LOW);
-     delay (100);
+     delay (50);
      }
 }
-
-
 
 void reactToTemp ()
 {
