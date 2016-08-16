@@ -77,9 +77,6 @@ if (!profileAcknowledged)
 }
  else   
     {
-      Serial.println("going!");
-      resetSoft();
-      
       outputData();
       controlElements();
       simTemp ();    // to be replaced with getting the temp from the thermocouple or RTD
