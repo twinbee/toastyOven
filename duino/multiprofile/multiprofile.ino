@@ -16,7 +16,7 @@ Licensed under the Mozilla Public License v 2.0
 */
 
 const int NUM_PROFILES = 3;
-void (* profiles  [NUM_PROFILES]) () = { profile1, profile1, profile1};
+void (* profiles  [NUM_PROFILES]) () = { profile1, profile2, profile3 };
 
 int profileChosen = -1;
 bool profileAcknowledged = false;
@@ -31,6 +31,16 @@ int currentTemp1 = 0;
 int currentTemp2 = 0;
 bool element1 = false;
 bool element2 = false;
+
+// a buffer used for hysteresis / dampening.
+//  within epsilon degrees is "good enough" 
+//  to count time toward our goal time for 
+//  that stage
+// Use half the value that you actually want
+// so if you want the range to be 10 degrees,
+//  e.g. 500C +/-5 C, use 5.0f
+int tempEpsilon = 5; 
+
 
 int timeTempReached = -1;
 int profileStage = 0;
@@ -67,6 +77,9 @@ if (!profileAcknowledged)
 }
  else   
     {
+      Serial.println("going!");
+      resetSoft();
+      
       outputData();
       controlElements();
       simTemp ();    // to be replaced with getting the temp from the thermocouple or RTD
@@ -97,8 +110,8 @@ void simTemp ()
 
 void outputData()
 {
-//  Serial.print(millis());
-//  Serial.print(",");
+  Serial.print(millis());
+  Serial.print(",");
   Serial.print(element1);
   Serial.print(",");
   Serial.print(currentTemp1);
@@ -111,7 +124,15 @@ void outputData()
   Serial.print(":");
   Serial.print(cookTimes[profileStage]);  
   Serial.print(",");
-  Serial.println(timeAtGoal);  
+  Serial.print(timeAtGoal);  
+  
+    //overshoot condition!
+  if ( currentTemp1 > (cookTemps[profileStage] + tempEpsilon) )
+  {
+   Serial.print(",!OVERSHOOT!  ");
+  }
+
+  Serial.println ();
 }
 
 void profile1()
@@ -124,13 +145,13 @@ void profile1()
 //Ramp Down 1C/s for 98s
 //Ramp Off
 cookTemps[0] = 160;
-cookTimes[0] = 10;
+cookTimes[0] = 120;
 
 cookTemps[1] = 220;
-cookTimes[1] = 10;
+cookTimes[1] = 30;
 
 cookTemps[2] = 160;
-cookTimes[2] = 10;
+cookTimes[2] = 60;
 
 cookTemps[3] = 40;
 cookTimes[3] = 30;
@@ -174,7 +195,6 @@ cookTimes[3] = 30;
 void collectButtonInfo()
 {
   bool lastButton = false;
-  
   bool buttonState = false;
   int timeButtonPressed = -1;
 
@@ -182,25 +202,28 @@ void collectButtonInfo()
 
   while (!profileAcknowledged)
   {
-    if (buttonState == HIGH) 
+  if (buttonState == HIGH) 
   {
     if (lastButton != buttonState) 
     {
-       Serial.println("B-on");
-       timeButtonPressed = millis();
+      Serial.println("B-on");
+      timeButtonPressed = millis();
     }
   } 
-  else 
+  else //  if (buttonState == LOW) 
   {
-    if (lastButton != buttonState) 
+    if (lastButton != buttonState && millis() - timeButtonPressed > 50) 
     {
-      if (millis() - timeButtonPressed < 3000)
+      Serial.print("B-off after ");
+      Serial.println(millis() - timeButtonPressed);
+      
+      if (millis() - timeButtonPressed < 2000)
       {
        profileChosen++;
        profileChosen %= NUM_PROFILES;
-       blinkOutProfileChosen();
        Serial.print("Selected profile: ");
        Serial.println(profileChosen);
+       blinkOutProfileChosen();
       }
       else 
       {
@@ -222,10 +245,10 @@ void collectButtonInfo()
 
 void blinkOutProfileChosen()
 {
-     for (int i = 1; i <= profileChosen; i++)
+     for (int i = 1; i <= profileChosen+1; i++)
      {
      digitalWrite(LEDPIN, HIGH);
-     delay (1000);
+     delay (500);
      
      digitalWrite(LEDPIN, LOW);
      delay (500);
@@ -235,7 +258,7 @@ void blinkOutProfileChosen()
 
 void blinkOutAck()
 {
-     for (int i = 1; i <= 10; i++)
+     for (int i = 1; i <= 5; i++)
      {
      digitalWrite(LEDPIN, HIGH);
      delay (100);
@@ -249,9 +272,12 @@ void blinkOutAck()
 
 void reactToTemp ()
 {
-
- if ( currentTemp1 > cookTemps[profileStage] )
+ 
+ if ( currentTemp1 > (cookTemps[profileStage] - tempEpsilon)  
+  //&& currentTemp1 < (cookTemps[profileStage] + tempEpsilon) 
+  )
  {
+  //first time that the temp was reached
   if (element1 && timeTempReached < 1 ) 
   {
     timeTempReached = millis();
@@ -260,10 +286,21 @@ void reactToTemp ()
   {
     timeAtGoal = (millis() - timeTempReached);
   }
-   element1 = false;
  }
- else element1 = true;
- 
+
+ if (!currentTemp1 > cookTemps[profileStage] )
+  {  
+   element1 = false;
+  }
+  else element1 = true;
+
+}
+
+void resetSoft()
+{
+   profileStage = 0;
+   profileChosen = -1;
+   profileAcknowledged = false;
 }
 
 void advancePhase ()
@@ -271,9 +308,7 @@ void advancePhase ()
  if (profileStage >= NUM_STAGES) 
  { 
    Serial.println("Resetting");
-   profileStage = 0;
-   profileChosen = -1;
-   profileAcknowledged = false;
+   resetSoft();
  }
 
  else if (timeAtGoal > 1000UL*cookTimes[profileStage])
