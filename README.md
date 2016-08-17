@@ -1,6 +1,9 @@
 # ToastyOven#
  is a repo for a very cheap Arduino-controller PCB flow / reflow oven for the after-population soldering of existing Printed circuit boards (PCBs).  Contributors are github user @twinbee @ILMPBx
 
+![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_toaster.png)
+
+
 The approach taken is low budget / minimum viable product (MVP). The oven features one LED for status, and one button for control. 
 
 Many others have produced fancy ovens with OLED / TFT diplays and many buttons. This is not that.. This is minimal and cheap enough to get a good result; No more, no less.
@@ -32,8 +35,6 @@ On the DC side, connect the arduino pin 13 to the SSR as illustrated in the frit
 The toaster may have a number of baking profiles up to the total number allowed by Arduino program memory space constraints. To select a profile, press the button the number of times desired until the LED is blinking the correct number for that profile. If you go past the last profile the selection will loop back to the first one. 
 
 When you are satisfied, hold the button down for three seconds without releasing it, and the profile will begin. Once the profile has completed, the toastyOven is reset and awaiting another profile / run.
-
-
 
 
 ## Arduino: Creating a custom profile ##
@@ -90,3 +91,10 @@ You may also want to configure the hysteresis buffer with a different temperatur
     int tempEpsilon = 5; 
     
 That's it! Enjoy a tasty circuit board at home.
+
+##Testing ##
+
+If you don't have the thermocouple circuit, you can use a simple 10K-Ohm potentiometer on one of the Analog input pins. If you don't have the toaster oven element circuit / SSR, you may use an LED to show when the oven element(s) are on.
+
+![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_bb.png)
+
