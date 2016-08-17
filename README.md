@@ -92,6 +92,13 @@ You may also want to configure the hysteresis buffer with a different temperatur
     
 That's it! Enjoy a tasty circuit board at home.
 
+##Toaster Wiring ##
+
+For our project, everything we needed was in a cabinet to the right side of the toaster. We removed all mechanical timers / knob controls and we left the emergency over-temp breaker device and the door switch in series with the power coming in.
+
+![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/ACSide_schem.png)
+
+
 ##Testing ##
 
 If you don't have the thermocouple circuit, you can use a simple 10K-Ohm potentiometer on one of the Analog input pins. If you don't have the toaster oven element circuit / SSR, you may use an LED to show when the oven element(s) are on.
