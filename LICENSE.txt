@@ -1,6 +1,8 @@
 Mozilla Public License Version 2.0
 ==================================
 
+Copyright 2016 Matthew Bennett
+
 1. Definitions
 --------------
 
