@@ -1,14 +1,19 @@
 # ToastyOven#
  is a repo for a very cheap Arduino-controller PCB flow / reflow oven for the after-population soldering of existing Printed circuit boards (PCBs).  Contributors are github user @twinbee @ILMPBx
 
-![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_toaster.png)
-
 
 The approach taken is low budget / minimum viable product (MVP). The oven features one LED for status, and one button for control. 
 
 Many others have produced fancy ovens with OLED / TFT diplays and many buttons. This is not that.. This is minimal and cheap enough to get a good result; No more, no less.
 
 Licensed under the Mozilla Public License 2.0 (MPL2). See LICENSE for more details. Copy right Matthew Bennett, Luke Andrews 2016.
+
+
+![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_toaster.png)
+Hookup diagram
+
+![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_schem.png)
+Schematic view (DC side)
 
 ## Bill of materials ##
 1. A cheap toaster 
@@ -97,6 +102,8 @@ That's it! Enjoy a tasty circuit board at home.
 For our project, everything we needed was in a cabinet to the right side of the toaster. We removed all mechanical timers / knob controls and we left the emergency over-temp breaker device and the door switch in series with the power coming in.
 
 ![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/ACSide_schem.png)
+
+Figure: AC side wiring
 
 
 ##Testing ##
