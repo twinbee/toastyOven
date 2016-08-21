@@ -8,13 +8,6 @@ Many others have produced fancy ovens with OLED / TFT diplays and many buttons. 
 
 Licensed under the Mozilla Public License 2.0 (MPL2). See LICENSE for more details. Copy right Matthew Bennett, Luke Andrews 2016.
 
-
-![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_toaster.png)
-Hookup diagram
-
-![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_schem.png)
-Schematic view (DC side)
-
 ## Bill of materials ##
 1. A cheap toaster 
 oven ($24 new or $15 thrifted)
@@ -27,13 +20,21 @@ oven ($24 new or $15 thrifted)
 
 Sum total is about $125
 
+## Hookup diagram ##
+![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_toaster.png)
+
+
+## Schematic (DC side) ##
+![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_schem.png)
+
+
 ## Building your toastyOven ##
 
 Wire the elements to the AC side of an SSR. Be sure to include the door switch and the fire prevention over-temperature sensor that came with your oven as series elements in the circuit, if applicable. Wire a pin on the arduino to the DC side of the SSR. Do not solder any connections which will live inside the toaster if you can avoid it, as the side cavity of a toaster oven may get hot enough to melt solder. Instead, crimp and use heat shrink. Use either quick disconnect terminals or butt-splice connectors. 
 
 On the DC side, connect the arduino pin 13 to the SSR as illustrated in the fritzing diagram or image found in the designs folder. Connect the button to arduino pin 2 via a 10KOhm pull-down resistor. Connect the LED to arduino pin 3 via a 220-Ohm pull-down resistor (or similar value based on the LED color and desired brightness). Connect the thermocouple amplifier to arduino pin 8 via the instructions from the thermocouple amplifier manufacturer (e.g. adaFruit). Connect a USB cable to computer if serial output desired, otherwise connect a USB cable to USB port supply. Connect a piezo buzzer to Arduino pin 5 if sound is desired. Put everything together physically and move on to the profile step.   
 
-## Repo Structure ##
+## github Repo Structure ##
 **duino** Contains the Arduino-based controller code. **designs** contains physical designs including some 3d-printable parts with sketchup models and wiring schematics. **processing**Contains code to take serial input from the arduino and plot it as a graph of temperature over time, for further tweaking
 
 ## Toaster Usage ##
@@ -42,7 +43,7 @@ The toaster may have a number of baking profiles up to the total number allowed 
 When you are satisfied, hold the button down for three seconds without releasing it, and the profile will begin. Once the profile has completed, the toastyOven is reset and awaiting another profile / run.
 
 
-## Arduino: Creating a custom profile ##
+## Arduino Firmware: Creating a custom profile ##
 Each profile should be written as a function with a function pointer stored in the global array profiles near the top of the code. Examples are provided.
 
     void profile1()
@@ -97,7 +98,7 @@ You may also want to configure the hysteresis buffer with a different temperatur
     
 That's it! Enjoy a tasty circuit board at home.
 
-##Toaster Wiring ##
+## Toaster AC-side Schematic ##
 
 For our project, everything we needed was in a cabinet to the right side of the toaster. We removed all mechanical timers / knob controls and we left the emergency over-temp breaker device and the door switch in series with the power coming in.
 
@@ -106,7 +107,7 @@ For our project, everything we needed was in a cabinet to the right side of the 
 Figure: AC side wiring
 
 
-##Testing ##
+## Bench Testing Firmware ##
 
 If you don't have the thermocouple circuit, you can use a simple 10K-Ohm potentiometer on one of the Analog input pins. If you don't have the toaster oven element circuit / SSR, you may use an LED to show when the oven element(s) are on.
 
