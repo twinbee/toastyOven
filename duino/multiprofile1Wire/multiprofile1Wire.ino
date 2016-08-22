@@ -28,7 +28,7 @@ const int BUTTONPIN = 4;
 const int LEDPIN = 13;
 const int BOTTOMELEMENT = 12;
 const int TOPELEMENT = 11;
-
+vy
 const int ONE_WIRE_BUS = 2;
 OneWire oneWire(ONE_WIRE_BUS);
 
@@ -196,6 +196,7 @@ void setup() {
   
   pinMode(BOTTOMELEMENT, OUTPUT);
   pinMode(TOPELEMENT, OUTPUT);
+
   pinMode(LEDPIN, OUTPUT);
 
   pinMode(BUTTONPIN, INPUT);
@@ -246,10 +247,12 @@ void controlElements()
   if (element1 == true)   
   { 
     digitalWrite(TOPELEMENT, HIGH);
+    digitalWrite(BOTTOMELEMENT, HIGH);
   }
   else
   {
    digitalWrite(TOPELEMENT, LOW);
+   digitalWrite(BOTTOMELEMENT, LOW);
   }      
 }
 
@@ -396,7 +399,7 @@ void reactToTemp ()
   }
  }
 
- if (!currentTemp1 > cookTemps[profileStage] )
+ if (currentTemp1 > cookTemps[profileStage] )
   {  
    element1 = false;
   }
