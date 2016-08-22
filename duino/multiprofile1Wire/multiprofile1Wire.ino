@@ -231,7 +231,7 @@ if (!profileAcknowledged)
 }
  else   
     {
-      checkButtonForResetEvent();
+      //checkButtonForResetEvent();
       outputData();
       controlElements();
       getTemp ();    // to be replaced with getting the temp from the thermocouple or RTD
