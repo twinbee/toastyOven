@@ -255,6 +255,7 @@ void controlElements()
 
 void getTemp ()
 {
+  sensors.requestTemperatures();
   currentTemp1 = sensors.getTempC(insideThermometer);
 }
 
