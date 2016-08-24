@@ -127,6 +127,7 @@ float lastSample = 0;
 unsigned long lastSampleTime = millis();
 unsigned long sampleTime = millis();
 
+// in duty cycles, 010101 means on, off, on, off, on, off when going right to left
 const byte dutyCycle0 = 0b00000000;
 const byte dutyCycle25 = 0b10001000;
 const byte dutyCycle50 = 0b10101010;
