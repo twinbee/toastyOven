@@ -464,25 +464,25 @@ void reactToTemp ()
   //else if (currentTemp1 > setPoints[profileStage] )
   else if (pidOut < -tempEpsilon)
   {  
-   duty = dutyCycle25;
+   duty = dutyCycle50;
   }
   //else if (currentTemp1 > setPoints[profileStage] - tempEpsilon )
   else if (pidOut < 0.0 )
   {
-    duty = dutyCycle50;
+    duty = dutyCycle625;
   }
   //else if (currentTemp1 < setPoints[profileStage] - 2*tempEpsilon )
   else if (pidOut < tempEpsilon )
   {
-    duty = dutyCycle625;
+    duty = dutyCycle75;
   }
   else if (pidOut < 2.0*tempEpsilon )
   {
-    duty = dutyCycle75;
+    duty = dutyCycle875;
   }
   else if (pidOut < 3.0*tempEpsilon )
   {
-    duty = dutyCycle875;
+    duty = dutyCycle100;
   }
   else //a long, long way to go and many ob-stackles in your path
     //  --the oracle from o brother, where art thou?
