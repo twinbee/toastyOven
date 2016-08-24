@@ -22,6 +22,11 @@ Licensed under the Mozilla Public License v 2.0
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+// PID controller constants
+const float k_p = 1.0f;
+const float k_i = 100.0f;
+const float k_d = 100.0f;
+
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 
 const int BUTTONPIN = 4;
@@ -119,11 +124,13 @@ setPointDurations[3] = 30;
 /////////////////////////////////////////////////////////////////////////
 // Base code part (no need to edit but go to town if you want to!)
 /////////////////////////////////////////////////////////////////////////
-float error = 0;
-float integral = 0;
-float derivative = 0;
+float error = 0.0f;
+float integral = 0.0f;
+float derivative = 0.0f;
 
-float lastSample = 0;
+float pidOut = 0.0f;
+
+float lastSample = 0.0f;
 unsigned long lastSampleTime = millis();
 unsigned long sampleTime = millis();
 
@@ -241,6 +248,7 @@ if (!profileAcknowledged)
       reactToTemp();
       advancePhase();
     }
+    delay(500);
 } //end main event loop
 
 void calculatePid()
@@ -248,6 +256,8 @@ void calculatePid()
  error = setPoints[profileStage] - currentTemp1;
  derivative = (lastSample - currentTemp1)/(lastSampleTime - sampleTime + 1);
  integral += error/(lastSampleTime - sampleTime);
+ 
+ pidOut = k_p*error + k_i*integral + k_d*derivative;
 }
 
 void controlElements()
@@ -312,17 +322,19 @@ void outputData()
   Serial.print("],");  
   Serial.print(duty, 2); // print in base 2
   Serial.print(",");  
-  Serial.print(error);
+  Serial.print(error,4);
   Serial.print(",");  
-  Serial.print(integral);
+  Serial.print(integral,8);
   Serial.print(",");  
-  Serial.print(derivative);
+  Serial.print(derivative,8);
+  Serial.print(",");  
+  Serial.print(pidOut,8);
   Serial.print(",");  
     
     //overshoot condition!
   if ( currentTemp1 > (setPoints[profileStage] + tempEpsilon) )
   {
-   Serial.print(",!OVERSHOOT!  ");
+   Serial.print(",!OVER!");
   }
 
   Serial.println ();
@@ -422,14 +434,10 @@ void blinkOutAck()
 
 void reactToTemp ()
 {
- 
- if ( currentTemp1 > (setPoints[profileStage] - tempEpsilon)  
-  //&& currentTemp1 < (setPoints[profileStage] + tempEpsilon) 
-  )
+ if ( currentTemp1 > setPoints[profileStage] )
  {
   //first time that the temp was reached
   if (
-      //element1 && 
       timeTempReached < 1 ) 
   {
     timeTempReached = millis();
@@ -438,33 +446,39 @@ void reactToTemp ()
   {
     timeAtGoal = (millis() - timeTempReached);
   }
- }
+
+}
 
  //Part deux: take care of the duty cycle
  // TODO: add reaction as PID control
 
   // Case 1: so many overshoot!
-  if (currentTemp1 > setPoints[profileStage] + tempEpsilon ) 
+  //if (currentTemp1 > setPoints[profileStage] + tempEpsilon ) 
+  if (pidOut < 1.0)
   {
    duty = dutyCycle0;
   }
   //Case 2: such overshoot!
-  else if (currentTemp1 > setPoints[profileStage] )
+  //else if (currentTemp1 > setPoints[profileStage] )
+  else if (pidOut < tempEpsilon)
   {  
    duty = dutyCycle25;
   }
-  else if (currentTemp1 > setPoints[profileStage] - tempEpsilon )
+  //else if (currentTemp1 > setPoints[profileStage] - tempEpsilon )
+  else if (pidOut < 2.0*tempEpsilon )
   {
     duty = dutyCycle50;
   }
-  else if (currentTemp1 < setPoints[profileStage] - tempEpsilon )
+  //else if (currentTemp1 < setPoints[profileStage] - 2*tempEpsilon )
+  else if (pidOut < 3.0*tempEpsilon )
   {
     duty = dutyCycle75;
   }
-  else if (currentTemp1 < setPoints[profileStage] - 2*tempEpsilon )
+  else
   {
     duty = dutyCycle100;
   }
+  
 }
 
 void resetSoft()
@@ -485,7 +499,8 @@ void advancePhase ()
  else if (timeAtGoal > 1000UL*setPointDurations[profileStage])
  {
   profileStage += 1;
-  timeAtGoal = 0;
+  timeAtGoal = 0UL;
+  timeTempReached = 0UL;
  }
 } 
  
