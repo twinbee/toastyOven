@@ -25,7 +25,7 @@ Licensed under the Mozilla Public License v 2.0
 // PID controller constants
 const float k_p = 1.0f;
 const float k_i = 100.0f;
-const float k_d = 100.0f;
+const float k_d = 1000.0f;
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 
@@ -138,7 +138,9 @@ unsigned long sampleTime = millis();
 const byte dutyCycle0 = 0b00000000;
 const byte dutyCycle25 = 0b10001000;
 const byte dutyCycle50 = 0b10101010;
+const byte  dutyCycle625 = 0b10101110;
 const byte  dutyCycle75 = 0b11101110;
+const byte  dutyCycle875 = 0b11111110;
 const byte dutyCycle100 = 0b11111111;
 
 byte duty = dutyCycle0;
@@ -248,7 +250,7 @@ if (!profileAcknowledged)
       reactToTemp();
       advancePhase();
     }
-    delay(500);
+    //delay(500);
 } //end main event loop
 
 void calculatePid()
@@ -296,8 +298,8 @@ void getTemp ()
   
   lastSample = currentTemp1;
 
-  //currentTemp1 = sensors.getTempC(insideThermometer);
-  currentTemp1 = analogRead(sensorPin);  
+  currentTemp1 = sensors.getTempC(insideThermometer);
+  //currentTemp1 = analogRead(sensorPin);  
 }
 
 void outputData()
@@ -454,27 +456,36 @@ void reactToTemp ()
 
   // Case 1: so many overshoot!
   //if (currentTemp1 > setPoints[profileStage] + tempEpsilon ) 
-  if (pidOut < 1.0)
+  if (pidOut < -2.0*tempEpsilon)
   {
    duty = dutyCycle0;
   }
   //Case 2: such overshoot!
   //else if (currentTemp1 > setPoints[profileStage] )
-  else if (pidOut < tempEpsilon)
+  else if (pidOut < -tempEpsilon)
   {  
    duty = dutyCycle25;
   }
   //else if (currentTemp1 > setPoints[profileStage] - tempEpsilon )
-  else if (pidOut < 2.0*tempEpsilon )
+  else if (pidOut < 0.0 )
   {
     duty = dutyCycle50;
   }
   //else if (currentTemp1 < setPoints[profileStage] - 2*tempEpsilon )
-  else if (pidOut < 3.0*tempEpsilon )
+  else if (pidOut < tempEpsilon )
+  {
+    duty = dutyCycle625;
+  }
+  else if (pidOut < 2.0*tempEpsilon )
   {
     duty = dutyCycle75;
   }
-  else
+  else if (pidOut < 3.0*tempEpsilon )
+  {
+    duty = dutyCycle875;
+  }
+  else //a long, long way to go and many ob-stackles in your path
+    //  --the oracle from o brother, where art thou?
   {
     duty = dutyCycle100;
   }
@@ -483,6 +494,11 @@ void reactToTemp ()
 
 void resetSoft()
 {
+  digitalWrite(TOPELEMENT, 0);
+  digitalWrite(BOTTOMELEMENT, 0);
+  element1 = false;
+  element2 = false;
+  duty = dutyCycle0;
    profileStage = 0;
    profileChosen = -1;
    profileAcknowledged = false;
