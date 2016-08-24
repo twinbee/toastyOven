@@ -28,7 +28,7 @@ const int BUTTONPIN = 4;
 const int LEDPIN = 13;
 const int BOTTOMELEMENT = 12;
 const int TOPELEMENT = 11;
-vy
+
 const int ONE_WIRE_BUS = 2;
 OneWire oneWire(ONE_WIRE_BUS);
 
@@ -119,6 +119,17 @@ cookTimes[3] = 30;
 /////////////////////////////////////////////////////////////////////////
 // Base code part (no need to edit but go to town if you want to!)
 /////////////////////////////////////////////////////////////////////////
+
+
+const byte dutyCycle0 = 0b00000000;
+const byte dutyCycle25 = 0b10001000;
+const byte dutyCycle50 = 0b10101010;
+const byte  dutyCycle75 = 0b11101110;
+const byte dutyCycle100 = 0b11111111;
+
+byte duty = dutyCycle0;
+
+byte dutyCycleCounter = 0;
 
 int profileChosen = -1;
 bool profileAcknowledged = false;
@@ -244,16 +255,29 @@ if (!profileAcknowledged)
 
 void controlElements()
 {
-  if (element1 == true)   
-  { 
-    digitalWrite(TOPELEMENT, HIGH);
-    digitalWrite(BOTTOMELEMENT, HIGH);
-  }
-  else
-  {
-   digitalWrite(TOPELEMENT, LOW);
-   digitalWrite(BOTTOMELEMENT, LOW);
-  }      
+ dutyCycleCounter = (dutyCycleCounter + 1)%8;
+ 
+ //counterth  bit of dutyCycle
+ element1 = (duty & ( 1 << dutyCycleCounter )) >> dutyCycleCounter%8;
+ element2 = (duty & ( 1 << dutyCycleCounter )) >> (dutyCycleCounter+1)%8;
+ 
+ if (element1)
+ {
+  digitalWrite(TOPELEMENT, true);
+ }
+ else //if (!element1)
+ {
+  digitalWrite(TOPELEMENT, false);
+ }
+ 
+ if (element2)
+ {
+  digitalWrite(BOTTOMELEMENT, true);
+ }
+ else //if (!element2)
+ {
+  digitalWrite(BOTTOMELEMENT, false);
+ }
 }
 
 void getTemp ()
@@ -389,7 +413,9 @@ void reactToTemp ()
   )
  {
   //first time that the temp was reached
-  if (element1 && timeTempReached < 1 ) 
+  if (
+      //element1 && 
+      timeTempReached < 1 ) 
   {
     timeTempReached = millis();
   }
@@ -399,11 +425,27 @@ void reactToTemp ()
   }
  }
 
- if (currentTemp1 > cookTemps[profileStage] )
-  {  
-   element1 = false;
+ //Part deux: take care of the duty cycle
+ // TODO: add reaction as PID control
+
+  // Case 1: so many overshoot!
+  if (currentTemp1 > cookTemps[profileStage] + tempEpsilon ) 
+  {
+   duty = dutyCycle0;
   }
-  else element1 = true;
+  //Case 2: such overshoot!
+  else if (currentTemp1 > cookTemps[profileStage] )
+  {  
+   duty = dutyCycle25;
+  }
+  else if (currentTemp1 > cookTemps[profileStage] - tempEpsilon )
+  {
+    duty = dutyCycle50;
+  }
+  else if (currentTemp1 < cookTemps[profileStage] - tempEpsilon )
+  {
+    duty = dutyCycle100;
+  }
 
 }
 
