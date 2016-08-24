@@ -25,7 +25,7 @@ Licensed under the Mozilla Public License v 2.0
 // PID controller constants
 const float k_p = 1.0f;
 const float k_i = 100.0f;
-const float k_d = 1000.0f;
+const float k_d = 100.0f;
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 
@@ -250,7 +250,7 @@ if (!profileAcknowledged)
       reactToTemp();
       advancePhase();
     }
-    //delay(500);
+    delay(500);
 } //end main event loop
 
 void calculatePid()
@@ -298,8 +298,8 @@ void getTemp ()
   
   lastSample = currentTemp1;
 
-  currentTemp1 = sensors.getTempC(insideThermometer);
-  //currentTemp1 = analogRead(sensorPin);  
+  //currentTemp1 = sensors.getTempC(insideThermometer);
+  currentTemp1 = analogRead(sensorPin);  
 }
 
 void outputData()
@@ -436,7 +436,7 @@ void blinkOutAck()
 
 void reactToTemp ()
 {
- if ( currentTemp1 > setPoints[profileStage] )
+ if ( currentTemp1 > setPoints[profileStage] - tempEpsilon )
  {
   //first time that the temp was reached
   if (
@@ -498,7 +498,7 @@ void resetSoft()
   digitalWrite(BOTTOMELEMENT, 0);
   element1 = false;
   element2 = false;
-  duty = dutyCycle0;
+  duty = 
    profileStage = 0;
    profileChosen = -1;
    profileAcknowledged = false;
