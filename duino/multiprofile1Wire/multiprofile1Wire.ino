@@ -119,7 +119,13 @@ cookTimes[3] = 30;
 /////////////////////////////////////////////////////////////////////////
 // Base code part (no need to edit but go to town if you want to!)
 /////////////////////////////////////////////////////////////////////////
+float error = 0;
+float integral = 0;
+float derivative = 0;
 
+float lastSample = 0;
+unsigned long lastSampleTime = millis();
+unsigned long sampleTime = millis();
 
 const byte dutyCycle0 = 0b00000000;
 const byte dutyCycle25 = 0b10001000;
@@ -243,15 +249,22 @@ if (!profileAcknowledged)
 }
  else   
     {
-      //checkButtonForResetEvent();
-      outputData();
+      checkButtonForResetEvent();
       controlElements();
       getTemp ();    // to be replaced with getting the temp from the thermocouple or RTD
+      calculatePid();
+      outputData();
       reactToTemp();
       advancePhase();
     }
-    delay(10);
 } //end main event loop
+
+void calculatePid()
+{
+ error = cookTemps[profileStage] - currentTemp1;
+ derivative = (lastSample - currentTemp1)/(lastSampleTime - sampleTime + 1);
+ integral += error/(lastSampleTime - sampleTime);
+}
 
 void controlElements()
 {
@@ -283,6 +296,11 @@ void controlElements()
 void getTemp ()
 {
   sensors.requestTemperatures();
+  
+  lastSampleTime = sampleTime;
+  sampleTime = millis();
+  
+  lastSample = currentTemp1;
   currentTemp1 = sensors.getTempC(insideThermometer);
 }
 
@@ -292,18 +310,27 @@ void outputData()
   Serial.print(",");
   Serial.print(element1);
   Serial.print(",");
+  Serial.print(element2);
+  Serial.print(",");
   Serial.print(currentTemp1);
   Serial.print(",");
-  Serial.print(profileChosen);
-  Serial.print("[");
-  Serial.print(profileStage);
-  Serial.print("],");
   Serial.print(cookTemps[profileStage]);
-  Serial.print(":");
+  Serial.print(",");
   Serial.print(cookTimes[profileStage]);  
   Serial.print(",");
   Serial.print(timeAtGoal);  
-  
+  Serial.print(",");
+  Serial.print(profileChosen);
+  Serial.print(":");
+  Serial.print(profileStage);
+  Serial.print(",");  
+  Serial.print(error);
+  Serial.print(",");  
+  Serial.print(integral);
+  Serial.print(",");  
+  Serial.print(derivative);
+  Serial.print(",");  
+    
     //overshoot condition!
   if ( currentTemp1 > (cookTemps[profileStage] + tempEpsilon) )
   {
@@ -444,9 +471,12 @@ void reactToTemp ()
   }
   else if (currentTemp1 < cookTemps[profileStage] - tempEpsilon )
   {
+    duty = dutyCycle75;
+  }
+  else if (currentTemp1 < cookTemps[profileStage] - 2*tempEpsilon )
+  {
     duty = dutyCycle100;
   }
-
 }
 
 void resetSoft()
