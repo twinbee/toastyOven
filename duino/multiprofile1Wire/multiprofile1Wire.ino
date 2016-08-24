@@ -43,8 +43,8 @@ const int NUM_PROFILES = 3;
 void (* profiles  [NUM_PROFILES]) () = { profile1, profile2, profile3 };
 
 const int NUM_STAGES = 4;
-int cookTemps[NUM_STAGES] = {0,0,0,0};
-int cookTimes[NUM_STAGES] = {0,0,0,0};
+int setPoints[NUM_STAGES] = {0,0,0,0};
+int setPointDurations[NUM_STAGES] = {0,0,0,0};
 
 // a buffer used for hysteresis / dampening.
 //  within epsilon degrees is "good enough" 
@@ -67,17 +67,17 @@ void profile1()
 //Dwell  30s
 //Ramp Down 1C/s for 98s
 //Ramp Off
-cookTemps[0] = 160;
-cookTimes[0] = 120;
+setPoints[0] = 160;
+setPointDurations[0] = 120;
 
-cookTemps[1] = 220;
-cookTimes[1] = 30;
+setPoints[1] = 220;
+setPointDurations[1] = 30;
 
-cookTemps[2] = 160;
-cookTimes[2] = 60;
+setPoints[2] = 160;
+setPointDurations[2] = 60;
 
-cookTemps[3] = 40;
-cookTimes[3] = 30;
+setPoints[3] = 40;
+setPointDurations[3] = 30;
 
 }
 
@@ -85,34 +85,34 @@ void profile2()
 {
    Serial.println("profile2: nothing");
    
-cookTemps[0] = 160;
-cookTimes[0] = 120;
+setPoints[0] = 160;
+setPointDurations[0] = 120;
 
-cookTemps[1] = 220;
-cookTimes[1] = 30;
+setPoints[1] = 220;
+setPointDurations[1] = 30;
 
-cookTemps[2] = 160;
-cookTimes[2] = 10;
+setPoints[2] = 160;
+setPointDurations[2] = 10;
 
-cookTemps[3] = 40;
-cookTimes[3] = 30;
+setPoints[3] = 40;
+setPointDurations[3] = 30;
 }
 
 void profile3()
 {
    Serial.println("profile3: nothing");
       
-cookTemps[0] = 160;
-cookTimes[0] = 120;
+setPoints[0] = 160;
+setPointDurations[0] = 120;
 
-cookTemps[1] = 220;
-cookTimes[1] = 30;
+setPoints[1] = 220;
+setPointDurations[1] = 30;
 
-cookTemps[2] = 160;
-cookTimes[2] = 10;
+setPoints[2] = 160;
+setPointDurations[2] = 10;
 
-cookTemps[3] = 40;
-cookTimes[3] = 30;
+setPoints[3] = 40;
+setPointDurations[3] = 30;
 }
 
 
@@ -224,23 +224,6 @@ void setup() {
 
 }
 
-// function to print the temperature for a device
-void printTemperature(DeviceAddress deviceAddress)
-{
-  // method 1 - slower
-  //Serial.print("Temp C: ");
-  //Serial.print(sensors.getTempC(deviceAddress));
-  //Serial.print(" Temp F: ");
-  //Serial.print(sensors.getTempF(deviceAddress)); // Makes a second call to getTempC and then converts to Fahrenheit
-
-  // method 2 - faster
-  float tempC = sensors.getTempC(deviceAddress);
-  Serial.print("Temp C: ");
-  Serial.print(tempC);
-  Serial.print(" Temp F: ");
-  Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
-}
-
 // the loop function runs over and over again forever
 void loop() {
 if (!profileAcknowledged)
@@ -261,7 +244,7 @@ if (!profileAcknowledged)
 
 void calculatePid()
 {
- error = cookTemps[profileStage] - currentTemp1;
+ error = setPoints[profileStage] - currentTemp1;
  derivative = (lastSample - currentTemp1)/(lastSampleTime - sampleTime + 1);
  integral += error/(lastSampleTime - sampleTime);
 }
@@ -271,8 +254,8 @@ void controlElements()
  dutyCycleCounter = (dutyCycleCounter + 1)%8;
  
  //counterth  bit of dutyCycle
- element1 = (duty & ( 1 << dutyCycleCounter )) >> dutyCycleCounter%8;
- element2 = (duty & ( 1 << dutyCycleCounter )) >> (dutyCycleCounter+1)%8;
+ element1 = (duty & ( 1 << dutyCycleCounter%8 )) >> dutyCycleCounter%8;
+ element2 = (duty & ( 1 << (dutyCycleCounter+1)%8 )) >> (dutyCycleCounter+1)%8;
  
  if (element1)
  {
@@ -301,28 +284,32 @@ void getTemp ()
   sampleTime = millis();
   
   lastSample = currentTemp1;
-  currentTemp1 = sensors.getTempC(insideThermometer);
+
+  //currentTemp1 = sensors.getTempC(insideThermometer);
+  currentTemp1 = analogRead(sensorPin);  
 }
 
 void outputData()
 {
   Serial.print(millis());
   Serial.print(",");
+  Serial.print(currentTemp1);
+  Serial.print(",On?");
   Serial.print(element1);
-  Serial.print(",");
+  Serial.print(":");
   Serial.print(element2);
   Serial.print(",");
-  Serial.print(currentTemp1);
+  Serial.print(setPoints[profileStage]);
   Serial.print(",");
-  Serial.print(cookTemps[profileStage]);
-  Serial.print(",");
-  Serial.print(cookTimes[profileStage]);  
+  Serial.print(setPointDurations[profileStage]);  
   Serial.print(",");
   Serial.print(timeAtGoal);  
   Serial.print(",");
   Serial.print(profileChosen);
-  Serial.print(":");
+  Serial.print("[");
   Serial.print(profileStage);
+  Serial.print("],");  
+  Serial.print(duty, 2); // print in base 2
   Serial.print(",");  
   Serial.print(error);
   Serial.print(",");  
@@ -332,7 +319,7 @@ void outputData()
   Serial.print(",");  
     
     //overshoot condition!
-  if ( currentTemp1 > (cookTemps[profileStage] + tempEpsilon) )
+  if ( currentTemp1 > (setPoints[profileStage] + tempEpsilon) )
   {
    Serial.print(",!OVERSHOOT!  ");
   }
@@ -435,8 +422,8 @@ void blinkOutAck()
 void reactToTemp ()
 {
  
- if ( currentTemp1 > (cookTemps[profileStage] - tempEpsilon)  
-  //&& currentTemp1 < (cookTemps[profileStage] + tempEpsilon) 
+ if ( currentTemp1 > (setPoints[profileStage] - tempEpsilon)  
+  //&& currentTemp1 < (setPoints[profileStage] + tempEpsilon) 
   )
  {
   //first time that the temp was reached
@@ -456,24 +443,24 @@ void reactToTemp ()
  // TODO: add reaction as PID control
 
   // Case 1: so many overshoot!
-  if (currentTemp1 > cookTemps[profileStage] + tempEpsilon ) 
+  if (currentTemp1 > setPoints[profileStage] + tempEpsilon ) 
   {
    duty = dutyCycle0;
   }
   //Case 2: such overshoot!
-  else if (currentTemp1 > cookTemps[profileStage] )
+  else if (currentTemp1 > setPoints[profileStage] )
   {  
    duty = dutyCycle25;
   }
-  else if (currentTemp1 > cookTemps[profileStage] - tempEpsilon )
+  else if (currentTemp1 > setPoints[profileStage] - tempEpsilon )
   {
     duty = dutyCycle50;
   }
-  else if (currentTemp1 < cookTemps[profileStage] - tempEpsilon )
+  else if (currentTemp1 < setPoints[profileStage] - tempEpsilon )
   {
     duty = dutyCycle75;
   }
-  else if (currentTemp1 < cookTemps[profileStage] - 2*tempEpsilon )
+  else if (currentTemp1 < setPoints[profileStage] - 2*tempEpsilon )
   {
     duty = dutyCycle100;
   }
@@ -494,7 +481,7 @@ void advancePhase ()
    resetSoft();
  }
 
- else if (timeAtGoal > 1000UL*cookTimes[profileStage])
+ else if (timeAtGoal > 1000UL*setPointDurations[profileStage])
  {
   profileStage += 1;
   timeAtGoal = 0;
