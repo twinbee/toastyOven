@@ -221,6 +221,16 @@ void setup() {
   Serial.print(sensors.getResolution(insideThermometer), DEC); 
   Serial.println();
   
+  getTemp ();
+  Serial.print("Temp: ");
+  Serial.print(currentTemp1, DEC); 
+  if (currentTemp1 > 200 || currentTemp1 < 0) 
+  {
+    Serial.println(" FATAL: Temp ");
+    while (true) blinkOutError();
+  }
+  
+  
   pinMode(BOTTOMELEMENT, OUTPUT);
   pinMode(TOPELEMENT, OUTPUT);
 
@@ -298,8 +308,8 @@ void getTemp ()
   
   lastSample = currentTemp1;
 
-  //currentTemp1 = sensors.getTempC(insideThermometer);
-  currentTemp1 = analogRead(sensorPin);  
+  currentTemp1 = sensors.getTempC(insideThermometer);
+  //currentTemp1 = analogRead(sensorPin);  
 }
 
 void outputData()
@@ -431,6 +441,18 @@ void blinkOutAck()
      
      digitalWrite(LEDPIN, LOW);
      delay (50);
+     }
+}
+
+void blinkOutError()
+{
+     for (int i = 1; i <= 4; i++)
+     {
+     digitalWrite(LEDPIN, HIGH);
+     delay (500);
+     
+     digitalWrite(LEDPIN, LOW);
+     delay (500);
      }
 }
 
