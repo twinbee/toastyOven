@@ -1,8 +1,11 @@
 # ToastyOven#
  is a repo for a very cheap Arduino-controller PCB flow / reflow oven for the after-population soldering of existing Printed circuit boards (PCBs).  Contributors are github user @twinbee @ILMPBx
+ @dmandala
 
 
-The approach taken is low budget / minimum viable product (MVP). The oven features one LED for status, and one button for control. 
+The approach taken is low budget / minimum viable product (MVP). The oven features one LED for status, and one button for
+control, except for the multiprofileTypeK which uses a cheap ~$5.00 OLED display and an extra
+2 buttons.
 
 Many others have produced fancy ovens with OLED / TFT diplays and many buttons. This is not that.. This is minimal and cheap enough to get a good result; No more, no less.
 
@@ -20,6 +23,21 @@ oven ($24 new or $15 thrifted)
 
 Sum total is about $125
 
+## Bill of materials for the multiprofileTypeK ##
+1) A cheap toaster oven (~$25)
+2) 2 Solid state relays, DC control of AC output 25A each, with heat sinks.
+I had these laying around. ($20)
+3) Arduino. I used a Nano I had laying around. (~$5)
+4) 1 Type K thermocouple, including the max6675 thermocouple amp. ($8)
+5) 2 Push buttons. I them laying around. ($ .50)
+6) 1 OLED 0.96" I2C 128x64 SSD1306 Yellow and Blue display. I had one laying
+around. (~$5)
+7) CM-Ceramics 1/2" 2400F Ceramic Fiber Insulaton. ($27)
+8) Permatex 81878 Ultra Copper Maximum Temperature RTV Silicone Gasket
+Maker. 3oz tube. ($7)
+
+Sum total is about $98
+
 ## Hookup diagram ##
 ![alt tag](https://raw.githubusercontent.com/twinbee/toastyOven/master/designs/arduinoHookup_toaster.png)
 
@@ -33,6 +51,13 @@ Sum total is about $125
 Wire the elements to the AC side of an SSR. Be sure to include the door switch and the fire prevention over-temperature sensor that came with your oven as series elements in the circuit, if applicable. Wire a pin on the arduino to the DC side of the SSR. Do not solder any connections which will live inside the toaster if you can avoid it, as the side cavity of a toaster oven may get hot enough to melt solder. Instead, crimp and use heat shrink. Use either quick disconnect terminals or butt-splice connectors. 
 
 On the DC side, connect the arduino pin 13 to the SSR as illustrated in the fritzing diagram or image found in the designs folder. Connect the button to arduino pin 2 via a 10KOhm pull-down resistor. Connect the LED to arduino pin 3 via a 220-Ohm pull-down resistor (or similar value based on the LED color and desired brightness). Connect the thermocouple amplifier to arduino pin 8 via the instructions from the thermocouple amplifier manufacturer (e.g. adaFruit). Connect a USB cable to computer if serial output desired, otherwise connect a USB cable to USB port supply. Connect a piezo buzzer to Arduino pin 5 if sound is desired. Put everything together physically and move on to the profile step.   
+
+## Building your toastyOven V2 with the OLED ##
+
+The Arduino nano is wired somewhat differently, Pins 2 and 3 are the buttons
+to ground, pins 4 and 5 control the SSD's, pins 11, 12, and 13 attach the
+max6675 thermocouple amp via SPI and finally the OLED via I2C on analog pins
+4 (SCL) and 5 (SDA).
 
 ## github Repo Structure ##
 **duino** Contains the Arduino-based controller code. **designs** contains physical designs including some 3d-printable parts with sketchup models and wiring schematics. **processing**Contains code to take serial input from the arduino and plot it as a graph of temperature over time, for further tweaking
