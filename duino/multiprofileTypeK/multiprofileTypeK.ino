@@ -14,42 +14,41 @@ Licensed under the Mozilla Public License v 2.0
    Serial port will spit out diagnostic data you can use for profiling
     in a CSV format of: time,temp,TopOn,BottomOn
 */
+/*
+ * Modified by David Mandala, with my changes also Licensed 
+ * under the Mozilla Public License v 2.0
+ * 
+ * Moved the profiles into an array, added a second button and added an 
+ * OLED display to the mix.  Seperated the functions into several files
+ * for ease of keeping track of what I'm doing.
+ */
 
 ///////////////////////////////////////////////////////////////////////
 // API part (e.g. make your own profile)
 ///////////////////////////////////////////////////////////////////////
 
-#include <OneWire.h>
-#include <DallasTemperature.h>
+// ***** INCLUDES *****
+#include <SPI.h>
+#include <Wire.h>
+
+// Pins to control or read devices
+#define SWITCH_STOP_START_BUTTON_PIN 3
+#define SWITCH_SELECT_PROFILE_BUTTON_PIN 2
+#define LED_PIN LED_BUILTIN
+#define BOTTOM_ELEMENT 5
+#define TOP_ELEMENT 4
+
+typedef enum SWITCH
+{
+  SWITCH_NONE,
+  SWITCH_STOP_START,
+  SWITCH_SELECT_PROFILE
+} switch_t;
 
 // PID controller constants
 const float k_p = 1.0f;
 const float k_i = 100.0f;
-const float k_d = 100.0f;
-
-// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-
-const int BUTTONPIN = 4;
-const int LEDPIN = 13;
-const int BOTTOMELEMENT = 12;
-const int TOPELEMENT = 11;
-
-const int ONE_WIRE_BUS = 2;
-OneWire oneWire(ONE_WIRE_BUS);
-
-// Pass our oneWire reference to Dallas Temperature. 
-DallasTemperature sensors(&oneWire);
-
-// arrays to hold device address
-DeviceAddress insideThermometer;
-
-
-const int NUM_PROFILES = 3;
-void (* profiles  [NUM_PROFILES]) () = { profile1, profile2, profile3 };
-
-const int NUM_STAGES = 4;
-int setPoints[NUM_STAGES] = {0,0,0,0};
-int setPointDurations[NUM_STAGES] = {0,0,0,0};
+const float k_d = 200.0f;
 
 // a buffer used for hysteresis / dampening.
 //  within epsilon degrees is "good enough" 
@@ -58,72 +57,43 @@ int setPointDurations[NUM_STAGES] = {0,0,0,0};
 // Use half the value that you actually want
 // so if you want the range to be 10 degrees,
 //  e.g. 500C +/-5C, use 5.0C
-int tempEpsilon = 5; 
+// Want no more then 5 degree swing but 5 went over by 10+
+int tempEpsilon = 1; 
 
-void profile1()
-{
-//times are in seconds
-//temps are in degrees Centigrade
+// ***** MESSAGES *****
+const char* MessagesReflowStatus[] = {
+  "Ready ",
+  "Pre   ",
+  "Soak  ",
+  "Reflow",
+  "R Cool",
+  "Cool  ",
+  "Done! ",
+  "Hot!  ",
+  "Error "
+};
 
-  Serial.println("profile1: MEMS mics");
-// Preheat 160C
-//Dwell 120s
-//Ramp Up 1C/s for 98s
-//Dwell  30s
-//Ramp Down 1C/s for 98s
-//Ramp Off
-setPoints[0] = 160;
-setPointDurations[0] = 120;
+const int NUM_STAGES = 5;
 
-setPoints[1] = 220;
-setPointDurations[1] = 30;
-
-setPoints[2] = 160;
-setPointDurations[2] = 60;
-
-setPoints[3] = 40;
-setPointDurations[3] = 30;
-
-}
-
-void profile2()
-{
-   Serial.println("profile2: nothing");
-   
-setPoints[0] = 160;
-setPointDurations[0] = 120;
-
-setPoints[1] = 220;
-setPointDurations[1] = 30;
-
-setPoints[2] = 160;
-setPointDurations[2] = 10;
-
-setPoints[3] = 40;
-setPointDurations[3] = 30;
-}
-
-void profile3()
-{
-   Serial.println("profile3: nothing");
-      
-setPoints[0] = 160;
-setPointDurations[0] = 120;
-
-setPoints[1] = 220;
-setPointDurations[1] = 30;
-
-setPoints[2] = 160;
-setPointDurations[2] = 10;
-
-setPoints[3] = 40;
-setPointDurations[3] = 30;
-}
-
+struct tprofile{
+  char name[10];
+  int setPoints[NUM_STAGES];
+  int setPointDurations[NUM_STAGES];
+};
+//            Pre,  soak, reflow, rcool, cool, ps,  ss,   sref,  scool, cool
+tprofile profiles[] = {
+  {"Lead   ", 180,   200,   220,  180,   50,   1,    60,   20,   10,    60},
+  {"No Lead", 200,   220,   245,  220,   50,   1,   100,   25,   25,    60},
+  {"Test   ", 150,   180,   210,  180,   50,   1,    70,   20,   20,    60}
+};
 
 /////////////////////////////////////////////////////////////////////////
 // Base code part (no need to edit but go to town if you want to!)
 /////////////////////////////////////////////////////////////////////////
+// Get the count of how many profiles are stored in the program.
+// looks a little strange because of how sizeof works on arrays of structs
+#define NUM_PROFILES sizeof profiles / sizeof profiles[0]
+
 float error = 0.0f;
 float integral = 0.0f;
 float derivative = 0.0f;
@@ -133,30 +103,25 @@ float pidOut = 0.0f;
 float lastSample = 0.0f;
 unsigned long lastSampleTime = millis();
 unsigned long sampleTime = millis();
+unsigned long totalRunTime;
 
 // in duty cycles, 010101 means on, off, on, off, on, off when going right to left
-const byte dutyCycle0 = 0b00000000;
-const byte dutyCycle25 = 0b10001000;
-const byte dutyCycle50 = 0b10101010;
-const byte  dutyCycle625 = 0b10101110;
-const byte  dutyCycle75 = 0b11101110;
-const byte  dutyCycle875 = 0b11111110;
-const byte dutyCycle100 = 0b11111111;
+#define DUTY_CYCLE_0    0b00000000
+#define DUTY_CYCLE_25   0b10001000
+#define DUTY_CYCLE_50   0b10101010
+#define DUTY_CYCLE_625  0b10101110
+#define DUTY_CYCLE_75   0b11101110
+#define DUTY_CYCLE_875  0b11111110
+#define DUTY_CYCLE_100  0b11111111
 
-byte duty = dutyCycle0;
-
+byte duty = DUTY_CYCLE_0;
 byte dutyCycleCounter = 0;
 
-int profileChosen = -1;
+int profileChosen = 0; // First profile in memory.
 bool profileAcknowledged = false;
-
-bool lastButton = false;
-bool buttonState = false;
-unsigned long timeButtonPressed = 0;
 
 //status of the environment
 float currentTemp1 = 0;
-float currentTemp2 = 0;
 bool element1 = false;
 bool element2 = false;
 
@@ -165,114 +130,66 @@ unsigned long timeAtGoal = 0;
 
 int profileStage = 0;
 
-//pot used for simulating temperature during development
-int sensorPin = A0; 
+// All the functions in the other files.
+float getTemp (void);
+void initButtons(void);
+byte switchJustPressed(void);
+void outputOLEDSplash(void);
+void outputOLEDStatus(void);
 
 // the setup function runs once when you press reset or power the board
-void setup() {
-  Serial.begin(9600);
+void setup(void) {
+  Serial.begin(115200);
 
-  // locate devices on the bus
-  Serial.print("Locating devices...");
-  sensors.begin();
-  Serial.print("Found ");
-  Serial.print(sensors.getDeviceCount(), DEC);
-  Serial.println(" devices.");
-
-  // report parasite power requirements
-  Serial.print("Parasite power is: "); 
-  if (sensors.isParasitePowerMode()) Serial.println("ON");
-  else Serial.println("OFF");
-  
-  // assign address manually.  the addresses below will beed to be changed
-  // to valid device addresses on your bus.  device address can be retrieved
-  // by using either oneWire.search(deviceAddress) or individually via
-  // sensors.getAddress(deviceAddress, index)
-  //insideThermometer = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 };
-
-  // Method 1:
-  // search for devices on the bus and assign based on an index.  ideally,
-  // you would do this to initially discover addresses on the bus and then 
-  // use those addresses and manually assign them (see above) once you know 
-  // the devices on your bus (and assuming they don't change).
-  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Unable to find address for Device 0"); 
-  
-  // method 2: search()
-  // search() looks for the next device. Returns 1 if a new address has been
-  // returned. A zero might mean that the bus is shorted, there are no devices, 
-  // or you have already retrieved all of them.  It might be a good idea to 
-  // check the CRC to make sure you didn't get garbage.  The order is 
-  // deterministic. You will always get the same devices in the same order
-  //
-  // Must be called before search()
-  //oneWire.reset_search();
-  // assigns the first address found to insideThermometer
-  //if (!oneWire.search(insideThermometer)) Serial.println("Unable to find address for insideThermometer");
-
-  // show the addresses we found on the bus
-  Serial.print("Device 0 Address: ");
-  printAddress(insideThermometer);
-  Serial.println();
-
-  // set the resolution to 9 bit (Each Dallas/Maxim device is capable of several different resolutions)
-  sensors.setResolution(insideThermometer, 9);
- 
-  Serial.print("Device 0 Resolution: ");
-  Serial.print(sensors.getResolution(insideThermometer), DEC); 
-  Serial.println();
-  
   getTemp ();
-  Serial.print("Temp: ");
-  Serial.print(currentTemp1, DEC); 
-  if (currentTemp1 > 200 || currentTemp1 < 0) 
-  {
-    Serial.println(" FATAL: Temp ");
-    while (true) blinkOutError();
-  }
-  
-  
-  pinMode(BOTTOMELEMENT, OUTPUT);
-  pinMode(TOPELEMENT, OUTPUT);
+  // Set pin modes
+  pinMode(BOTTOM_ELEMENT, OUTPUT);
+  pinMode(TOP_ELEMENT, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  initButtons();
 
-  pinMode(LEDPIN, OUTPUT);
-
-  pinMode(BUTTONPIN, INPUT);
+  switchJustPressed();
+  outputOLEDSplash();
+  Serial.print("Profiles in memory: ");
+  Serial.println(NUM_PROFILES);
+  Serial.print("Current Profile: ");
+  Serial.println(profiles[profileChosen].name);
   
-  digitalWrite(LEDPIN, HIGH);
-  
-  blinkOutAck();
-
+  digitalWrite(LED_PIN, HIGH);
 }
 
 // the loop function runs over and over again forever
-void loop() {
-if (!profileAcknowledged)
-{
-  collectProfileSetting();
-}
- else   
-    {
-      checkButtonForResetEvent();
-      controlElements();
-      getTemp ();    // to be replaced with getting the temp from the thermocouple or RTD
-      calculatePid();
-      outputData();
-      reactToTemp();
-      advancePhase();
-    }
-    delay(500);
+void loop(void) {
+  if (!profileAcknowledged)
+  {
+    selectProfile();
+    getTemp();
+    outputOLEDStatus();
+  }
+  else   
+  {
+    getTemp ();
+    checkButtonForResetEvent();
+    outputSerialData();
+    outputOLEDStatus();
+    controlElements();
+    calculatePid();
+    reactToTemp();
+    advancePhase();
+    delay(500);// Why 1/2 second delay here?
+  }
 } //end main event loop
 
-void calculatePid()
+void calculatePid(void)
 {
- error = setPoints[profileStage] - currentTemp1;
+ error = profiles[profileChosen].setPoints[profileStage] - currentTemp1;
  derivative = (lastSample - currentTemp1)/(lastSampleTime - sampleTime + 1);
  integral += error/(lastSampleTime - sampleTime);
  
  pidOut = k_p*error + k_i*integral + k_d*derivative;
 }
 
-void controlElements()
+void controlElements(void)
 {
  dutyCycleCounter = (dutyCycleCounter + 1)%8;
  
@@ -282,274 +199,131 @@ void controlElements()
  
  if (element1)
  {
-  digitalWrite(TOPELEMENT, true);
+  digitalWrite(TOP_ELEMENT, true);
  }
  else //if (!element1)
  {
-  digitalWrite(TOPELEMENT, false);
+  digitalWrite(TOP_ELEMENT, false);
  }
  
  if (element2)
  {
-  digitalWrite(BOTTOMELEMENT, true);
+  digitalWrite(BOTTOM_ELEMENT, true);
  }
  else //if (!element2)
  {
-  digitalWrite(BOTTOMELEMENT, false);
+  digitalWrite(BOTTOM_ELEMENT, false);
  }
 }
 
-void getTemp ()
+void reactToTemp (void)
 {
-  sensors.requestTemperatures();
-  
-  lastSampleTime = sampleTime;
-  sampleTime = millis();
-  
-  lastSample = currentTemp1;
 
-  currentTemp1 = sensors.getTempC(insideThermometer);
-  //currentTemp1 = analogRead(sensorPin);  
-}
-
-void outputData()
-{
-  Serial.print(millis());
-  Serial.print(",");
-  Serial.print(currentTemp1);
-  Serial.print(",On?");
-  Serial.print(element1);
-  Serial.print(":");
-  Serial.print(element2);
-  Serial.print(",");
-  Serial.print(setPoints[profileStage]);
-  Serial.print(",");
-  Serial.print(setPointDurations[profileStage]);  
-  Serial.print(",");
-  Serial.print(timeAtGoal);  
-  Serial.print(",");
-  Serial.print(profileChosen);
-  Serial.print("[");
-  Serial.print(profileStage);
-  Serial.print("],");  
-  Serial.print(duty, 2); // print in base 2
-  Serial.print(",");  
-  Serial.print(error,4);
-  Serial.print(",");  
-  Serial.print(integral,8);
-  Serial.print(",");  
-  Serial.print(derivative,8);
-  Serial.print(",");  
-  Serial.print(pidOut,8);
-  Serial.print(",");  
-    
-    //overshoot condition!
-  if ( currentTemp1 > (setPoints[profileStage] + tempEpsilon) )
+  if ( currentTemp1 > profiles[profileChosen].setPoints[profileStage] - tempEpsilon )
   {
-   Serial.print(",!OVER!");
-  }
-
-  Serial.println ();
-}
-
-
-void collectProfileSetting()
-{
-  buttonState = digitalRead(BUTTONPIN);
-
-  while (!profileAcknowledged)
-  {
-  if (buttonState == HIGH) 
-  {
-    if (lastButton != buttonState) 
-    {
-      timeButtonPressed = millis();
-    }
-  } 
-  else //  if (buttonState == LOW) 
-  {
-    if (lastButton != buttonState && millis() - timeButtonPressed > 30) 
-    {
-      //Serial.print("B-off after ");
-      //Serial.println(millis() - timeButtonPressed);
-      
-      if (millis() - timeButtonPressed < 1000)
-      {
-       profileChosen++;
-       profileChosen %= NUM_PROFILES;
-       Serial.print("Selected profile: ");
-       Serial.println(profileChosen+1);
-       blinkOutProfileChosen();
-      }
-      else 
-      {
-       profileAcknowledged = true;
-       blinkOutAck();
-       blinkOutProfileChosen();
-       blinkOutAck();
-       //do the settings for the given profile
-       profiles[profileChosen](); 
-       break;
-      }      
-    }
- }
- lastButton = buttonState;
- buttonState= digitalRead(BUTTONPIN);
-} //end while
-
-      timeButtonPressed = 0;
-}
-
-void  checkButtonForResetEvent()
-{
-  lastButton = buttonState;
-  buttonState = digitalRead(BUTTONPIN);
-
-   if (buttonState == HIGH) 
-   {
-        Serial.println("!RESET!");
-        resetSoft();
-   }      
-}
-
-void blinkOutProfileChosen()
-{
-     digitalWrite(LEDPIN, LOW);
-     delay (200);
-     
-     for (int i = 1; i <= profileChosen+1; i++)
-     {
-     digitalWrite(LEDPIN, HIGH);
-     delay (200);
-     
-     digitalWrite(LEDPIN, LOW);
-     delay (100);
-     }
-     
-     digitalWrite(LEDPIN, LOW);
-     delay (100);
-     
-     digitalWrite(LEDPIN, LOW);
-}
-
-void blinkOutAck()
-{
-     for (int i = 1; i <= 4; i++)
-     {
-     digitalWrite(LEDPIN, HIGH);
-     delay (50);
-     
-     digitalWrite(LEDPIN, LOW);
-     delay (50);
-     }
-}
-
-void blinkOutError()
-{
-     for (int i = 1; i <= 4; i++)
-     {
-     digitalWrite(LEDPIN, HIGH);
-     delay (500);
-     
-     digitalWrite(LEDPIN, LOW);
-     delay (500);
-     }
-}
-
-void reactToTemp ()
-{
- if ( currentTemp1 > setPoints[profileStage] - tempEpsilon )
- {
-  //first time that the temp was reached
-  if (
+    //first time that the temp was reached
+    if (
       timeTempReached < 1 ) 
-  {
-    timeTempReached = millis();
-  }
-  else
-  {
-    timeAtGoal = (millis() - timeTempReached);
+    {
+      timeTempReached = millis();
+    }
+    else
+    {
+      timeAtGoal = (millis() - timeTempReached);
+    }
   }
 
-}
-
- //Part deux: take care of the duty cycle
- // TODO: add reaction as PID control
+  //Part deux: take care of the duty cycle
+  // TODO: add reaction as PID control
 
   // Case 1: so many overshoot!
-  //if (currentTemp1 > setPoints[profileStage] + tempEpsilon ) 
+  //if (currentTemp1 > profiles[profileChosen].setPoints[profileStage] + tempEpsilon ) 
   if (pidOut < -2.0*tempEpsilon)
   {
-   duty = dutyCycle0;
+    duty = DUTY_CYCLE_0;
   }
   //Case 2: such overshoot!
-  //else if (currentTemp1 > setPoints[profileStage] )
+  //else if (currentTemp1 > profiles[profileChosen].setPoints[profileStage] )
   else if (pidOut < -tempEpsilon)
   {  
-   duty = dutyCycle50;
+    duty = DUTY_CYCLE_50;
   }
-  //else if (currentTemp1 > setPoints[profileStage] - tempEpsilon )
+  //else if (currentTemp1 > profiles[profileChosen].setPoints[profileStage] - tempEpsilon )
   else if (pidOut < 0.0 )
   {
-    duty = dutyCycle625;
+    duty = DUTY_CYCLE_625;
   }
-  //else if (currentTemp1 < setPoints[profileStage] - 2*tempEpsilon )
+  //else if (currentTemp1 < profiles[profileChosen].setPoints[profileStage] - 2*tempEpsilon )
   else if (pidOut < tempEpsilon )
   {
-    duty = dutyCycle75;
+    duty = DUTY_CYCLE_75;
   }
   else if (pidOut < 2.0*tempEpsilon )
   {
-    duty = dutyCycle875;
+    duty = DUTY_CYCLE_875;
   }
   else if (pidOut < 3.0*tempEpsilon )
   {
-    duty = dutyCycle100;
+    duty = DUTY_CYCLE_100;
   }
   else //a long, long way to go and many ob-stackles in your path
     //  --the oracle from o brother, where art thou?
   {
-    duty = dutyCycle100;
+    duty = DUTY_CYCLE_100;
   }
   
 }
 
-void resetSoft()
-{
-  digitalWrite(TOPELEMENT, 0);
-  digitalWrite(BOTTOMELEMENT, 0);
-  element1 = false;
-  element2 = false;
-  duty = 
-   profileStage = 0;
-   profileChosen = -1;
-   profileAcknowledged = false;
-}
-
-void advancePhase ()
+void advancePhase (void)
 {
  if (profileStage >= NUM_STAGES) 
  { 
-   Serial.println("Resetting");
+   Serial.println("End of profile");
    resetSoft();
  }
-
- else if (timeAtGoal > 1000UL*setPointDurations[profileStage])
+ else if (timeAtGoal > 1000UL*profiles[profileChosen].setPointDurations[profileStage])
  {
   profileStage += 1;
   timeAtGoal = 0UL;
   timeTempReached = 0UL;
  }
 } 
- 
- // function to print a device address
-void printAddress(DeviceAddress deviceAddress)
+
+void selectProfile(void)
 {
-  for (uint8_t i = 0; i < 8; i++)
+  byte buttonPressed = switchJustPressed();
+  if (buttonPressed == SWITCH_SELECT_PROFILE)
   {
-    if (deviceAddress[i] < 16) Serial.print("0");
-    Serial.print(deviceAddress[i], HEX);
+    profileChosen++;
+    profileChosen %= NUM_PROFILES;
+    Serial.print("Selected profile: ");
+    Serial.println(profiles[profileChosen].name);
+  }
+  else if (buttonPressed == SWITCH_STOP_START)
+  {
+    profileAcknowledged = true;
+    totalRunTime = millis();
   }
 }
 
+void checkButtonForResetEvent(void)
+{
+  byte buttonPressed = switchJustPressed();
+  if (buttonPressed == SWITCH_STOP_START)
+  {
+    resetSoft();
+  }
+  return;
+}
 
+void resetSoft(void)
+{
+  digitalWrite(TOP_ELEMENT, 0);
+  digitalWrite(BOTTOM_ELEMENT, 0);
+  element1 = false;
+  element2 = false;
+  duty = 
+   profileStage = 0;
+   profileAcknowledged = false;
+   return;
+}
