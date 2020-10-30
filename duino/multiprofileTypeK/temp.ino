@@ -15,16 +15,25 @@ unsigned char thermocoupleCLKPin = 13;
 
 MAX6675 thermocouple(thermocoupleCLKPin, thermocoupleCSPin, thermocoupleD0Pin);
 
-float getTemp (void)
+// Make sure we don't read this too fast, it can only be read every 250 millis
+float readSensor(void)
 {
-  static unsigned long last_time = 0;
   unsigned long time_now = millis();
+  static unsigned long last_time = 0;
+  static float currentTemp;
 
   if (time_now - last_time >= MIN_READ_INTERVAL){
-    lastSampleTime = sampleTime;
-    lastSample = currentTemp1;
-    sampleTime = last_time = time_now;
-    currentTemp1 =  thermocouple.readCelsius();
+    currentTemp =  thermocouple.readCelsius();
+    last_time = time_now;
   }
-    return(currentTemp1);
+  return(currentTemp);
+}
+
+float getTemp (void)
+{
+  lastSampleTime = sampleTime;
+  sampleTime = millis();
+  lastSample = currentTemp1;
+  currentTemp1 = readSensor();
+  return(currentTemp1);
 }

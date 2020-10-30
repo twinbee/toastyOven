@@ -35,8 +35,8 @@ Licensed under the Mozilla Public License v 2.0
 #define SWITCH_STOP_START_BUTTON_PIN 3
 #define SWITCH_SELECT_PROFILE_BUTTON_PIN 2
 #define LED_PIN LED_BUILTIN
-#define BOTTOM_ELEMENT 5
-#define TOP_ELEMENT 4
+#define BOTTOM_ELEMENT 6
+#define TOP_ELEMENT 5
 
 typedef enum SWITCH
 {
