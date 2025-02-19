@@ -1,5 +1,5 @@
 # ToastyOven#
- is a repo for a very cheap Arduino-controller PCB flow / reflow oven for the after-population soldering of existing Printed circuit boards (PCBs).  Contributors are github user @twinbee @ILMPBx
+ is a repo for a very cheap Arduino-controller PCB flow / reflow oven for the after-population soldering of existing Printed circuit boards (PCBs).  Contributors are github user @twinbee @LKAPBx
 
 
 The approach taken is low budget / minimum viable product (MVP). The oven features one LED for status, and one button for control. 
